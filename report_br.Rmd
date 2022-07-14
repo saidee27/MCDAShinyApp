@@ -1,0 +1,227 @@
+---
+title: "report"
+output: html_document
+params:
+  datasetd: NA
+  criterion_maxd: NA
+  criterion_mind: NA
+  Nd: NA
+  varianced: NA
+  alternatived: NA
+  res0d: NA
+  res1d: NA
+  res2d: NA
+  res3d: NA
+  weightsd: NA
+---
+
+```{r setup, echo = FALSE}
+library(data.table)
+library(ggplot2)
+library(knitr) 
+library(reshape2) 
+library(formattable)# for kable
+library(grid)
+library(gridExtra)
+```
+
+##Data
+
+```{r echo=FALSE}
+
+df1 <- params$datasetd %>% select(one_of(params$alternatived,c(params$criterion_maxd,params$criterion_mind)[1],params$Nd[1]))
+    for (i in 2:length(params$Nd)) {
+      df1 <- bind_cols(df1, params$datasetd %>% select(one_of(c(params$criterion_maxd,params$criterion_mind)[i],params$Nd[i])) )
+    }
+df1
+
+```
+
+##Utility functions
+
+```{r echo=FALSE}
+ggplot(data=params$res0d, aes(x=Score, y=Utility, group=criterion)) + geom_line() + geom_point() + facet_wrap(. ~ criterion, scales="free_x") + labs(title = "Utility functions", x = "Score on criterion Scale", y = "Utility")
+```
+
+
+##Weights for Each Benefit-Risk Criterion
+
+```{r figw, fig.height=6, echo=FALSE}
+wdata <- as.data.frame(cbind(params$weightsd,c(params$criterion_maxd,params$criterion_mind))) %>% `colnames<-`(c("Weight", "Criterion")) %>% mutate(Weight = as.numeric(as.character(Weight))) %>% mutate(Criterion=as.character(Criterion))
+
+
+p0<-ggplot(data=wdata, aes(x=Criterion, y=Weight)) +
+  geom_bar(stat="identity") + geom_text(aes(label = stat(y)), stat = 'identity', vjust = -1) + labs(title = "Weights for each Benefit-Risk Criterion", x = "Criterion", y = "Weights") + theme(legend.position = "none")
+    p0
+
+```
+
+
+##Multiple-criteria Decision Analysis
+
+
+```{r fig, fig.height=10, echo=FALSE}
+plotdatalist = params$res1d
+    plotdata = plotdatalist$data1 %>% as_tibble() %>% mutate(criterion = c(params$criterion_maxd, params$criterion_mind)) %>% reshape2::melt(id.var = c('criterion'), variable.name = 'Alternative') %>% mutate(value=round(value,3)) %>% arrange(criterion)
+    #p01<-ggplot(data=plotdata, aes(x=criterion, y=value)) + geom_col(width=0.5) +  facet_grid(. ~ Alternative) + labs(title = "Utility by Alternative", x = "criterion", y = "Utility") + theme(legend.position = "none") + coord_flip()
+    #p01
+    
+    g_legend <- function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+
+p = ggplot(data=plotdata, aes(x=Alternative, y=value, fill=criterion) ) + 
+  geom_bar(stat="identity") + 
+  geom_text(
+    aes(label = stat(y), group = Alternative), 
+    stat = 'summary', fun.y = sum, vjust = -1
+  ) +
+  #labs(title = "Utility by Alternative", x = "criterion", y = "Utility") +
+  #theme(axis.text.x=element_text(angle=90, vjust=0.5, hjust=0.5))+ 
+  ggtitle("Utility by Alternative") +
+  labs(fill="")
+
+# Extract the legend as a separate grob
+leg = g_legend(p)
+
+df = plotdatalist$data1 %>% as_tibble() %>% mutate(criterion = c(params$criterion_maxd, params$criterion_mind)) %>% arrange(criterion)
+# Create a table grob
+tab = round(df[,-ncol(df)],3) %>% as.matrix()
+tab = tableGrob(tab, rows=NULL)
+tab$widths <- unit(rep(1/ncol(tab), ncol(tab)), "npc")
+
+# Lay out plot, legend, and table grob
+grid.arrange(arrangeGrob(nullGrob(), 
+                         p + guides(fill=FALSE) + 
+                           theme(axis.text.x=element_blank(),
+                                 axis.title.x=element_blank(),
+                                 axis.ticks.x=element_blank()),
+                         widths=c(1,8)), 
+             arrangeGrob(arrangeGrob(nullGrob(),leg,heights=c(1,10)),
+                         tab, nullGrob(), widths=c(6,20,1)),
+             heights=c(4,1))
+
+  
+```
+
+
+```{r echo=FALSE}
+    plotdatalist = params$res1d
+    plotdata = plotdatalist$data1 %>% as_tibble() %>% mutate_all(funs((. - c(plotdatalist$data1[,1])))) %>% mutate(criterion = c(params$criterion_maxd, params$criterion_mind)) %>% reshape2::melt(id.var = c('criterion'), variable.name = 'Alternative') %>% mutate(value=round(value,3))
+    p0<-ggplot(data=plotdata, aes(x=criterion, y=value, fill=value < 0)) + scale_fill_manual(values = c("green", "red")) + geom_col(width=0.5) + facet_grid(. ~ Alternative) + coord_flip() + geom_vline(aes(xintercept=0, color="grey"), linetype="dashed") + geom_text(aes(label = stat(y)), position = position_stack(vjust = 0.5), stat = 'identity', vjust = -1) + labs(title = "Difference in Utilitys", x = "criterion", y = "Weighted Difference in Utility") + theme(legend.position = "none")
+    p0
+
+    
+```
+
+
+```{r echo=FALSE}
+
+    plotdatalist = params$res1d
+    plotdata1 = plotdatalist$data2 %>% as_tibble() %>% `colnames<-`(c(pull(params$datasetd[, params$alternatived]))) %>% mutate(Weight = c(seq(0.1,1,by=0.1))) %>% reshape2::melt(id.var = c('Weight'), variable.name = 'Alternative')
+    plotdata2 = plotdatalist$data3 %>% as_tibble() %>% `colnames<-`(c(pull(params$datasetd[, params$alternatived]))) %>% mutate(Weight = c(seq(0.1,1,by=0.1))) %>% reshape2::melt(id.var = c('Weight'), variable.name = 'Alternative') %>% rename(Variance = value) %>% left_join(plotdata1, by = c("Weight", "Alternative")) %>% mutate(Upper = value + 1.96*Variance) %>% mutate(Lower = value - 1.96*Variance)
+    p02<-ggplot(data=plotdata2, aes(x=Weight, y=value, color=Alternative)) + geom_point() + geom_line() 
+    p02<- p02 + geom_ribbon(aes(ymin=plotdata2$Lower, ymax=plotdata2$Upper), linetype=2, alpha=0.1) + labs(title = "Utility vs Weight for most important criterion", x = "Weight", y = "Net Utility")
+    p02
+  
+```
+
+##Probabilistic MCDA
+
+```{r echo=FALSE}
+  plotdata = params$res2d %>% stack() %>% `colnames<-`(c("Utility", "Alternative"))
+    p<-ggplot(data=plotdata, aes(x=Utility, fill=Alternative)) + geom_density(alpha=0.4) + labs(title = "Distribution of Benefit-Risk Score", x = "Overall Benefit- Risk Score", y = "Density", fill = "Alternative")
+  p
+```
+
+```{r fig2, fig.height=6, echo=FALSE}
+ plotdata = params$res2d %>% as.matrix() %>% rowRanks() %>% as.tibble() %>% `colnames<-`(c(pull(params$datasetd[, params$alternatived]))) %>% stack() %>% `colnames<-`(c("Rank", "Alternative")) %>% mutate(Rank = length(c(pull(params$datasetd[, params$alternatived]))) - Rank + 1) %>% mutate(Rank = as.character(Rank)) %>% group_by(Rank, Alternative) %>% tally() %>% mutate(Rank.Probability = n/100000)
+    p2<-ggplot(data=plotdata) + geom_bar(aes(y = Rank.Probability, x = Alternative, fill = Rank), stat="identity", width = 0.5) + ggtitle("Probability of Ranking") 
+    
+    # Extract the legend as a separate grob
+leg = g_legend(p2)
+
+    df <- reshape2::dcast(plotdata,Rank~Alternative)
+    
+    # Create a table grob
+tab = round(df[,-1],3) %>% as.matrix()
+tab = tableGrob(tab, rows=NULL)
+tab$widths <- unit(rep(1/ncol(tab), ncol(tab)), "npc")
+
+# Lay out plot, legend, and table grob
+grid.arrange(arrangeGrob(nullGrob(), 
+                         p2 + guides(fill=FALSE) + 
+                           theme(axis.text.x=element_blank(),
+                                 axis.title.x=element_blank(),
+                                 axis.ticks.x=element_blank()),
+                         widths=c(1,8)), 
+             arrangeGrob(arrangeGrob(nullGrob(),leg,heights=c(1,10)),
+                         tab, nullGrob(), widths=c(6,20,1)),
+             heights=c(4,1))
+
+  
+```
+
+```{r echo=FALSE}
+    plotdata = params$res2d %>% mutate_all(funs((. - c(pull(params$res2d[,1]))))) %>% stack() %>% `colnames<-`(c("Difference", "Alternative"))
+    p3<-ggplot(data=plotdata, aes(x=Difference)) + geom_density(alpha=0.4) + facet_grid(Alternative ~ .) + geom_vline(aes(xintercept=0, color="grey"), linetype="dashed") + labs(title = "Distribution of difference in Benefit-Risk Score", x = "Overall Benefit- Risk Score Difference", y = "Density") + theme(legend.position = "none")
+    p3
+
+```
+
+##Stochastic Multicriteria Acceptability Analysis (SMAA)
+
+```{r echo=FALSE}
+
+  plotdata = params$res3d %>% stack() %>% `colnames<-`(c("Utility", "Alternative"))
+    p<-ggplot(data=plotdata, aes(x=Utility, fill=Alternative)) + geom_density(alpha=0.4) + labs(title = "Distribution of Benefit-Risk Score", x = "Overall Benefit- Risk Score", y = "Density", fill = "Alternative")
+  p
+
+```
+
+```{r fig3, fig.height=6, echo=FALSE}
+
+  
+  
+  plotdata = params$res3d %>% as.matrix() %>% rowRanks() %>% as.tibble() %>% `colnames<-`(c(pull(params$datasetd[, params$alternatived]))) %>% stack() %>% `colnames<-`(c("Rank", "Alternative")) %>% mutate(Rank = length(c(pull(params$datasetd[, params$alternatived]))) - Rank + 1) %>% mutate(Rank = as.character(Rank)) %>% group_by(Rank, Alternative) %>% tally() %>% mutate(Rank.Probability = n/100000)
+    p2<-ggplot(data=plotdata) + geom_bar(aes(y = Rank.Probability, x = Alternative, fill = Rank), stat="identity", width = 0.5) + ggtitle("Probability of Ranking") 
+    
+    # Extract the legend as a separate grob
+leg = g_legend(p2)
+    
+    df <- reshape2::dcast(plotdata,Rank~Alternative) 
+    
+    # Create a table grob
+tab = round(df[,-1],3) %>% as.matrix()
+tab = tableGrob(tab, rows=NULL)
+tab$widths <- unit(rep(1/ncol(tab), ncol(tab)), "npc")
+
+# Lay out plot, legend, and table grob
+grid.arrange(arrangeGrob(nullGrob(), 
+                         p2 + guides(fill=FALSE) + 
+                           theme(axis.text.x=element_blank(),
+                                 axis.title.x=element_blank(),
+                                 axis.ticks.x=element_blank()),
+                         widths=c(1,8)), 
+             arrangeGrob(arrangeGrob(nullGrob(),leg,heights=c(1,10)),
+                         tab, nullGrob(), widths=c(6,20,1)),
+             heights=c(4,1))
+
+    
+  
+```
+
+```{r echo=FALSE}
+
+
+  plotdata = params$res3d %>% mutate_all(funs((. - c(pull(params$res3d[,1]))))) %>% stack() %>% `colnames<-`(c("Difference", "Alternative"))
+    p3<-ggplot(data=plotdata, aes(x=Difference)) + geom_density(alpha=0.4) + facet_grid(Alternative ~ .) + geom_vline(aes(xintercept=0, color="grey"), linetype="dashed") + labs(title = "Distribution of difference in Benefit-Risk Score", x = "Overall Benefit- Risk Score Difference", y = "Density") + theme(legend.position = "none")
+    p3
+  
+
+
+
+```
+

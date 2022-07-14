@@ -1,0 +1,4 @@
+,Trt,Response,Nausea,Insomnia,Anxiety,N_Response,N_Nausea,N_Insomnia,N_Anxiety,Var_Response,Var_Nausea,Var_Insomnia,Var_Anxiety,Best_Response,Worst_Response,Best_Nausea,Worst_Nausea,Best_Insomnia,Worst_Insomnia,Best_Anxiety,Worst_Anxiety
+1,Placebo,37,8,14,1,101,102,102,102,0.002298357,0.000708626,0.001160941,9.51746E-05,0.63,0.28,0.04,0.5,0.08,0.31,0,0.17
+2,Fluoxetine,45,22,15,7,100,102,102,102,0.002475,0.001658487,0.001229731,0.000626644,0.63,0.28,0.04,0.5,0.08,0.31,0,0.17
+3,Venlafaxine,51,40,22,10,96,100,100,100,0.002593994,0.0024,0.001716,0.0009,0.63,0.28,0.04,0.5,0.08,0.31,0,0.17
